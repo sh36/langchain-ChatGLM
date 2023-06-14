@@ -22,9 +22,10 @@ import models.shared as shared
 from models.loader.args import parser
 from models.loader import LoaderCheckPoint
 
+#工具包,将段落拆分为句子，拆分词语
 nltk.data.path = [NLTK_DATA_PATH] + nltk.data.path
 
-
+#基本的响应模型类，用于表示HTTP响应的基本结构。code属性表示HTTP状态码，msg属性表示HTTP状态消息
 class BaseResponse(BaseModel):
     code: int = pydantic.Field(200, description="HTTP status code")
     msg: str = pydantic.Field("success", description="HTTP status message")
@@ -37,7 +38,7 @@ class BaseResponse(BaseModel):
             }
         }
 
-
+#列出文档的响应,data属性表示文档名称的列表。
 class ListDocsResponse(BaseResponse):
     data: List[str] = pydantic.Field(..., description="List of document names")
 
@@ -50,7 +51,8 @@ class ListDocsResponse(BaseResponse):
             }
         }
 
-
+#一个聊天消息模型类，用于表示聊天消息的结构。
+# question属性表示问题文本，response属性表示回答文本，history属性表示历史文本，source_documents属性表示源文件列表。
 class ChatMessage(BaseModel):
     question: str = pydantic.Field(..., description="Question text")
     response: str = pydantic.Field(..., description="Response text")
@@ -78,19 +80,21 @@ class ChatMessage(BaseModel):
             }
         }
 
-
+#根据给定的本地文档ID返回文件夹路径
 def get_folder_path(local_doc_id: str):
     return os.path.join(UPLOAD_ROOT_PATH, local_doc_id)
 
-
+#根据给定的本地文档ID返回知识向量存储路径
 def get_vs_path(local_doc_id: str):
     return os.path.join(VS_ROOT_PATH, local_doc_id)
 
-
+#根据给定的本地文档ID和文档名称返回文件路径
 def get_file_path(local_doc_id: str, doc_name: str):
     return os.path.join(UPLOAD_ROOT_PATH, local_doc_id, doc_name)
 
-
+#异步函数，用于上传单个文件。file参数表示要上传的文件，knowledge_base_id参数表示知识库的名称。
+#函数首先检查文件是否已存在，如果存在且大小与上传文件相同，则返回成功的响应。否则，将文件保存到指定路径，并加载知识库。
+#如果成功加载了文件，则返回成功的响应。
 async def upload_file(
         file: UploadFile = File(description="A single binary file"),
         knowledge_base_id: str = Form(..., description="Knowledge Base Name", example="kb1"),
@@ -118,7 +122,9 @@ async def upload_file(
         file_status = "文件上传失败，请重新上传"
         return BaseResponse(code=500, msg=file_status)
 
-
+#异步函数，用于上传多个文件。
+#函数首先检查每个文件是否已存在，如果存在且大小与上传文件相同，则跳过该文件。否则，将文件保存到指定路径，并加载知识库。
+#如果成功加载了文件，则返回成功的响应。
 async def upload_files(
         files: Annotated[
             List[UploadFile], File(description="Multiple files as UploadFile")
@@ -146,7 +152,7 @@ async def upload_files(
     file_status = "文件未成功加载，请重新上传文件"
     return BaseResponse(code=500, msg=file_status)
 
-
+#异步函数，用于列出文档。如果提供了知识库名称，则列出该知识库中的所有文档。否则，列出所有知识库。函数返回包含文档名称的响应。
 async def list_docs(
         knowledge_base_id: Optional[str] = Query(default=None, description="Knowledge Base Name", example="kb1")
 ):
@@ -172,7 +178,7 @@ async def list_docs(
 
         return ListDocsResponse(data=all_doc_ids)
 
-
+#异步函数，用于删除文档。
 async def delete_docs(
         knowledge_base_id: str = Query(...,
                                        description="Knowledge Base Name",
@@ -206,7 +212,10 @@ async def delete_docs(
         shutil.rmtree(get_folder_path(knowledge_base_id))
         return BaseResponse(code=200, msg=f"Knowledge Base {knowledge_base_id} delete success")
 
-
+# 处理本地文档聊天的请求。
+# 函数首先检查知识库是否存在，如果不存在，则返回一个包含错误信息的响应。
+# 否则，使用local_doc_qa.get_knowledge_based_answer函数获取基于知识库的回答，并生成相关的源文件信息。
+# 最后，返回一个包含问题、回答、历史记录和源文件信息的响应。
 async def local_doc_chat(
         knowledge_base_id: str = Body(..., description="Knowledge Base Name", example="kb1"),
         question: str = Body(..., description="Question", example="工伤保险是什么？"),
@@ -248,7 +257,9 @@ async def local_doc_chat(
             source_documents=source_documents,
         )
 
-
+#用于处理基于Bing搜索的聊天请求。
+#函数使用local_doc_qa.get_search_result_based_answer函数获取基于搜索结果的回答，并生成相关的源文件信息。
+# 最后，返回一个包含问题、回答、历史记录和源文件信息的响应。
 async def bing_search_chat(
         question: str = Body(..., description="Question", example="工伤保险是什么？"),
         history: Optional[List[List[str]]] = Body(
@@ -278,6 +289,9 @@ async def bing_search_chat(
         source_documents=source_documents,
     )
 
+#处理通用的聊天请求。
+# 函数使用local_doc_qa.llm.generatorAnswer函数生成回答，并更新历史记录。
+# 最后，返回一个包含问题、回答、历史记录和空源文件信息的响应。
 async def chat(
         question: str = Body(..., description="Question", example="工伤保险是什么？"),
         history: List[List[str]] = Body(
@@ -304,7 +318,12 @@ async def chat(
         source_documents=[],
     )
 
-
+# 用于处理基于WebSocket的流式聊天请求。
+# 它接受一个websocket参数表示WebSocket连接对象，一个knowledge_base_id参数表示知识库的名称。
+# 函数首先接受WebSocket连接，然后循环接收来自客户端的消息。
+# 对于每个消息，它检查知识库是否存在，如果不存在，则返回一个包含错误信息的响应，并关闭WebSocket连接。
+# 否则，它发送一个开始消息给客户端，然后使用local_doc_qa.get_knowledge_based_answer函数获取基于知识库的回答，
+# 并逐步发送回答给客户端。最后，它发送一个包含问题、回答、源文件信息等的结束消息给客户端。
 async def stream_chat(websocket: WebSocket, knowledge_base_id: str):
     await websocket.accept()
     turn = 1
@@ -353,7 +372,10 @@ async def document():
 
 
 
-
+# 启动API应用程序。
+# 它接受host和port作为参数，并设置了全局的app和local_doc_qa对象。
+# 然后，它初始化了llm_model_ins对象，并配置了local_doc_qa对象。
+# 最后，使用uvicorn库运行应用程序。
 def api_start(host, port):
     global app
     global local_doc_qa

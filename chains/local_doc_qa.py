@@ -34,7 +34,7 @@ HuggingFaceEmbeddings.__hash__ = _embeddings_hash
 def load_vector_store(vs_path, embeddings):
     return FAISS.load_local(vs_path, embeddings)
 
-
+#递归地遍历文件路径下的所有文件，并返回两个列表，第一个列表为全部文件的完整路径，第二个列表为对应的文件名
 def tree(filepath, ignore_dir_names=None, ignore_file_names=None):
     """返回两个列表，第一个列表为 filepath 下全部文件的完整路径, 第二个为对应的文件名"""
     if ignore_dir_names is None:
@@ -57,7 +57,8 @@ def tree(filepath, ignore_dir_names=None, ignore_file_names=None):
                     ret_list.extend(tree(fullfilepath, ignore_dir_names, ignore_file_names)[0])
     return ret_list, [os.path.basename(p) for p in ret_list]
 
-
+# 根据文件路径加载文档。根据文件的扩展名，选择不同的加载器和文本分割器来加载和处理文档。
+# 函数接受一个文件路径和一个可选的句子大小参数，并返回加载和处理后的文档。
 def load_file(filepath, sentence_size=SENTENCE_SIZE):
     if filepath.lower().endswith(".md"):
         loader = UnstructuredFileLoader(filepath, mode="elements")
@@ -81,7 +82,7 @@ def load_file(filepath, sentence_size=SENTENCE_SIZE):
     write_check_file(filepath, docs)
     return docs
 
-
+# 用于将文件路径和文档写入一个检查文件中。它将文档的元数据和内容写入一个临时文件中，用于检查加载和处理的结果。
 def write_check_file(filepath, docs):
     folder_path = os.path.join(os.path.dirname(filepath), "tmp_files")
     if not os.path.exists(folder_path):
@@ -95,7 +96,7 @@ def write_check_file(filepath, docs):
             fout.write('\n')
         fout.close()
 
-
+#根据相关文档、查询和提示模板生成一个完整的提示
 def generate_prompt(related_docs: List[str],
                     query: str,
                     prompt_template: str = PROMPT_TEMPLATE, ) -> str:
@@ -103,7 +104,7 @@ def generate_prompt(related_docs: List[str],
     prompt = prompt_template.replace("{question}", query).replace("{context}", context)
     return prompt
 
-
+#将一个整数列表分隔成多个连续的子列表。它接受一个整数列表作为输入，并返回一个包含连续子列表的列表。
 def seperate_list(ls: List[int]) -> List[List[int]]:
     lists = []
     ls1 = [ls[0]]
@@ -116,7 +117,9 @@ def seperate_list(ls: List[int]) -> List[List[int]]:
     lists.append(ls1)
     return lists
 
-
+# 用于根据嵌入向量进行相似度搜索，并返回具有得分的相关文档。
+# 函数接受一个嵌入向量和一个可选的返回文档数目参数，并使用索引对象进行相似度搜索。
+# 它返回一个包含文档和得分的元组列表。
 def similarity_search_with_score_by_vector(
         self, embedding: List[float], k: int = 4
 ) -> List[Tuple[Document, float]]:
@@ -175,7 +178,8 @@ def similarity_search_with_score_by_vector(
     torch_gc()
     return docs
 
-
+# 将搜索结果转换为文档对象列表。
+# 它接受一个搜索结果列表，将每个搜索结果中的关键信息提取出来，并创建一个对应的文档对象，最后返回文档对象列表。
 def search_result2docs(search_results):
     docs = []
     for result in search_results:
@@ -189,16 +193,16 @@ def search_result2docs(search_results):
 class LocalDocQA:
     llm: BaseAnswer = None
     embeddings: object = None
-    top_k: int = VECTOR_SEARCH_TOP_K
-    chunk_size: int = CHUNK_SIZE
-    chunk_conent: bool = True
-    score_threshold: int = VECTOR_SEARCH_SCORE_THRESHOLD
+    top_k: int = VECTOR_SEARCH_TOP_K  # 搜索知识库内容条数，默认为5
+    chunk_size: int = CHUNK_SIZE  # 匹配单段内容的连接上下文长度
+    chunk_conent: bool = True  # 是否启用上下文关联
+    score_threshold: int = VECTOR_SEARCH_SCORE_THRESHOLD  # 搜索匹配score阈值
 
     def init_cfg(self,
-                 embedding_model: str = EMBEDDING_MODEL,
-                 embedding_device=EMBEDDING_DEVICE,
-                 llm_model: BaseAnswer = None,
-                 top_k=VECTOR_SEARCH_TOP_K,
+                 embedding_model: str = EMBEDDING_MODEL,  # 嵌入模型名称
+                 embedding_device=EMBEDDING_DEVICE,  # 嵌入模型设备
+                 llm_model: BaseAnswer = None,  # 语言模型
+                 top_k=VECTOR_SEARCH_TOP_K,  # 搜索知识库内容条数
                  ):
         self.llm = llm_model
         self.embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict[embedding_model],
@@ -206,9 +210,10 @@ class LocalDocQA:
         self.top_k = top_k
 
     def init_knowledge_vector_store(self,
-                                    filepath: str or List[str],
-                                    vs_path: str or os.PathLike = None,
-                                    sentence_size=SENTENCE_SIZE):
+                                    filepath: str or List[str],  # 文件路径
+                                    vs_path: str or os.PathLike = None,  # 向量库路径
+                                    sentence_size=SENTENCE_SIZE,  # 句子大小
+                                    ):
         loaded_files = []
         failed_files = []
         if isinstance(filepath, str):
@@ -268,7 +273,7 @@ class LocalDocQA:
         else:
             logger.info("文件均未成功加载，请检查依赖包或替换为其他文件再次上传。")
             return None, loaded_files
-
+    #向知识库中添加单个文档。它接收知识库路径、标题、内容以及句子大小等参数作为输入
     def one_knowledge_add(self, vs_path, one_title, one_conent, one_content_segmentation, sentence_size):
         try:
             if not vs_path or not one_title or not one_conent:
@@ -289,7 +294,9 @@ class LocalDocQA:
         except Exception as e:
             logger.error(e)
             return None, [one_title]
-
+        
+    #基于知识库回答查询。它接收查询、知识库路径和聊天历史等参数作为输入。
+    #首先加载向量存储并执行相似度搜索以获取相关文档。然后生成提示并将其与聊天历史一起传递给问答模型以获取答案。
     def get_knowledge_based_answer(self, query, vs_path, chat_history=[], streaming: bool = STREAMING):
         vector_store = load_vector_store(vs_path, self.embeddings)
         FAISS.similarity_search_with_score_by_vector = similarity_search_with_score_by_vector
@@ -298,7 +305,7 @@ class LocalDocQA:
         vector_store.score_threshold = self.score_threshold
         related_docs_with_score = vector_store.similarity_search_with_score(query, k=self.top_k)
         torch_gc()
-        if len(related_docs_with_score)>0:
+        if len(related_docs_with_score) > 0:
             prompt = generate_prompt(related_docs_with_score, query)
         else:
             prompt = query
@@ -337,7 +344,9 @@ class LocalDocQA:
         response = {"query": query,
                     "source_documents": related_docs_with_score}
         return response, prompt
-
+    
+    #用于基于搜索结果回答查询。它接收查询和聊天历史等参数作为输入。
+    #首先使用搜索引擎进行查询，并将搜索结果转换为文档列表。然后生成提示并将其与聊天历史一起传递给问答模型以获取答案。
     def get_search_result_based_answer(self, query, chat_history=[], streaming: bool = STREAMING):
         results = bing_search(query)
         result_docs = search_result2docs(results)
