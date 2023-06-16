@@ -87,6 +87,16 @@ llm_model_dict = {
         "provides": "FastChatOpenAILLM",  # 使用fastchat api时，需保证"provides"为"FastChatOpenAILLM"
         "api_base_url": "https://api.minimax.chat/v1/text/chatcompletion?GroupId=1683775659483837"  # "name"修改为fastchat服务中的"api_base_url"
     },
+
+    # ernie
+    "ernie": {
+        "name": "ernie",  # "name"修改为fastchat服务中的"model_name"
+        "pretrained_model_name": "ernie",
+        "local_model_path": None,
+        "provides": "ERNIELLM",  # 使用fastchat api时，需保证"provides"为"FastChatOpenAILLM"
+        "api_base_url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/eb-instant"  # "name"修改为fastchat服务中的"api_base_url"
+    },
+
     # 通过 fastchat 调用的模型请参考如下格式
     "fastchat-chatglm-6b": {
         "name": "chatglm-6b",  # "name"修改为fastchat服务中的"model_name"
@@ -108,7 +118,8 @@ llm_model_dict = {
 
 # LLM 名称
 #LLM_MODEL = "chatglm-6b"
-LLM_MODEL = "fastchat-minimax"
+#LLM_MODEL = "fastchat-minimax"
+LLM_MODEL = "ernie"
 #LLM_MODEL = "xinghuo"
 # 如果你需要加载本地的model，指定这个参数  ` --no-remote-model`，或者下方参数修改为 `True`
 NO_REMOTE_MODEL = False
