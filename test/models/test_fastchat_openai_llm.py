@@ -32,8 +32,8 @@ async def dispatch(args: Namespace):
 
 if __name__ == '__main__':
     args = None
-    args = parser.parse_args(args=['--model-dir', '/media/checkpoint/',  '--model', 'fastchat-chatglm-6b', '--no-remote-model'])
-
+    #args = parser.parse_args(args=['--model-dir', '/media/checkpoint/',  '--model', 'fastchat-chatglm-6b', '--no-remote-model'])
+    args = parser.parse_args()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(dispatch(args))
