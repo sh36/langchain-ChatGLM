@@ -307,6 +307,7 @@ class LocalDocQA:
         torch_gc()
         if len(related_docs_with_score) > 0:
             prompt = generate_prompt(related_docs_with_score, query)
+            print("promt:",prompt)
         else:
             prompt = query
 
