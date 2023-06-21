@@ -43,7 +43,7 @@ if __name__ == '__main__':
     # 解析命令行参数
     args = parser.parse_args(['--dialogue-path', '/home/dmeck/Downloads/log.txt',
                               '--embedding-mode', '/media/checkpoint/text2vec-large-chinese/'])
-    
+
     # 创建新的事件循环
     loop = asyncio.new_event_loop()
     # 设置事件循环

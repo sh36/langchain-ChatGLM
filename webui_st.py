@@ -97,7 +97,8 @@ def get_answer(query, vs_path, history, mode, score_threshold=VECTOR_SEARCH_SCOR
     # flag_csv_logger.flag([query, vs_path, history, mode], username=FLAG_USER_NAME)
 
 
-def init_model(llm_model: str = 'chat-glm-6b', embedding_model: str = 'text2vec'):
+#def init_model(llm_model: str = 'chat-glm-6b', embedding_model: str = 'text2vec'):
+def init_model(llm_model: str = 'chat-glm-6b', embedding_model: str = EMBEDDING_MODEL):
     local_doc_qa = LocalDocQA()
     # 初始化消息
     args = parser.parse_args()

@@ -13,12 +13,13 @@ embedding_model_dict = {
     #"ernie-tiny": "nghuyong/ernie-3.0-nano-zh",
     #"ernie-base": "nghuyong/ernie-3.0-base-zh",
     #"text2vec-base": "/home/text2vec-base-chinese",
-    "text2vec": "/home/text2vec-large-chinese",
+    #"text2vec": "/home/text2vec-large-chinese",
+    "m3e-base": "/home/m3e-base",
 }
 
 # Embedding model name
-EMBEDDING_MODEL = "text2vec"
-
+#EMBEDDING_MODEL = "text2vec"
+EMBEDDING_MODEL = "m3e-base"
 # Embedding running device
 EMBEDDING_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
