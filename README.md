@@ -1,5 +1,25 @@
 # 基于本地知识库的 ChatGLM 等大语言模型应用实现
 
+# 对接星火大模型与文心大模型
+实现后端对接星火大模型和文心大模型
+embedding模型采用m3e-base模型
+访问ip：82.156.154.30
+
+# 启动基于 VUE 的前端页面
+在目录下启动api：
+nohup sh start.sh &
+在view目录下执行：
+nohup npm run dev & disown
+
+查看端口：
+后端端口：lsof -i :7861
+前端端口：lsof -i :80
+或查看后台进程：
+ps -aux | grep api.py 或 ps -aux | grep start.sh
+
+杀死对应进程：
+kill -9 进程号
+
 ## 介绍
 
 🌍 [_READ THIS IN ENGLISH_](README_en.md)
