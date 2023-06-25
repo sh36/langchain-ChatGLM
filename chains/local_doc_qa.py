@@ -56,8 +56,8 @@ def tree(filepath, ignore_dir_names=None, ignore_file_names=None):
                     ret_list.extend(tree(fullfilepath, ignore_dir_names, ignore_file_names)[0])
     return ret_list, [os.path.basename(p) for p in ret_list]
 
-
-def load_file(filepath, sentence_size=SENTENCE_SIZE):
+def load_file(filepath, sentence_size=SENTENCE_SIZE, using_zh_title_enhance=ZH_TITLE_ENHANCE):
+#def load_file(filepath, sentence_size=SENTENCE_SIZE):
     if filepath.lower().endswith(".md"):
         loader = UnstructuredFileLoader(filepath, mode="elements")
         docs = loader.load()
