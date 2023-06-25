@@ -20,6 +20,15 @@ ps -aux | grep api.py 或 ps -aux | grep start.sh
 杀死对应进程：
 kill -9 进程号
 
+## 添加大模型步骤
+1.在model_config.py的llm_model_dict中添加相应模型，可通过修改LLM_MODEL的值修改默认模型
+2.在models目录下添加相应模型，可仿造fastchat_openai_llm.py添加远程模型，添加xxxLLM类，修改generatorAnswer函数进行对话，设置api_base_url与model_name。
+3.import对应模型：在models的_init_.py中添加：from .xxx import xxxLLM
+4.shared.py中，loaderLLM函数下添加对应模型判断语句：if 'xxxLLM' in llm_model_info["provides"]
+5.在test下添加对应测试文件，测试模型对话功能是否可以正常使用，内容可参照test_fastchat_openai_llm.py
+
+以上是对调用api.py服务的大模型修改路径，需使用webui或cli_demo需做对应修改
+
 ## 介绍
 
 🌍 [_READ THIS IN ENGLISH_](README_en.md)
