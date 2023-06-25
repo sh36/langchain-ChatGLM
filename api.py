@@ -15,7 +15,7 @@ from typing_extensions import Annotated
 from starlette.responses import RedirectResponse
 
 from chains.local_doc_qa import LocalDocQA
-from configs.model_config import (VS_ROOT_PATH, UPLOAD_ROOT_PATH, EMBEDDING_DEVICE,
+from configs.model_config import (KB_ROOT_PATH, EMBEDDING_DEVICE,
                                   EMBEDDING_MODEL, NLTK_DATA_PATH,
                                   VECTOR_SEARCH_TOP_K, LLM_HISTORY_LEN, OPEN_CROSS_DOMAIN)
 import models.shared as shared
@@ -82,15 +82,15 @@ class ChatMessage(BaseModel):
 
 #根据给定的本地文档ID返回文件夹路径
 def get_folder_path(local_doc_id: str):
-    return os.path.join(UPLOAD_ROOT_PATH, local_doc_id)
+    return os.path.join(KB_ROOT_PATH, local_doc_id, "content")
 
 #根据给定的本地文档ID返回知识向量存储路径
 def get_vs_path(local_doc_id: str):
-    return os.path.join(VS_ROOT_PATH, local_doc_id)
+    return os.path.join(KB_ROOT_PATH, local_doc_id, "vector_store")
 
 #根据给定的本地文档ID和文档名称返回文件路径
 def get_file_path(local_doc_id: str, doc_name: str):
-    return os.path.join(UPLOAD_ROOT_PATH, local_doc_id, doc_name)
+    return os.path.join(KB_ROOT_PATH, local_doc_id, "content", doc_name)
 
 #异步函数，用于上传单个文件。file参数表示要上传的文件，knowledge_base_id参数表示知识库的名称。
 #函数首先检查文件是否已存在，如果存在且大小与上传文件相同，则返回成功的响应。否则，将文件保存到指定路径，并加载知识库。
@@ -147,70 +147,128 @@ async def upload_files(
     if filelist:
         vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store(filelist, get_vs_path(knowledge_base_id))
         if len(loaded_files):
-            file_status = f"已上传 {'、'.join([os.path.split(i)[-1] for i in loaded_files])} 至知识库，并已加载知识库，请开始提问"
+            file_status = f"documents {', '.join([os.path.split(i)[-1] for i in loaded_files])} upload success"
             return BaseResponse(code=200, msg=file_status)
-    file_status = "文件未成功加载，请重新上传文件"
+    file_status = f"documents {', '.join([os.path.split(i)[-1] for i in loaded_files])} upload fail"
     return BaseResponse(code=500, msg=file_status)
 
 #异步函数，用于列出文档。如果提供了知识库名称，则列出该知识库中的所有文档。否则，列出所有知识库。函数返回包含文档名称的响应。
+
+async def list_kbs():
+    # Get List of Knowledge Base
+    if not os.path.exists(KB_ROOT_PATH):
+        all_doc_ids = []
+    else:
+        all_doc_ids = [
+            folder
+            for folder in os.listdir(KB_ROOT_PATH)
+            if os.path.isdir(os.path.join(KB_ROOT_PATH, folder))
+               and os.path.exists(os.path.join(KB_ROOT_PATH, folder, "vector_store", "index.faiss"))
+        ]
+
+    return ListDocsResponse(data=all_doc_ids)
+
+
 async def list_docs(
         knowledge_base_id: Optional[str] = Query(default=None, description="Knowledge Base Name", example="kb1")
 ):
-    if knowledge_base_id:
-        local_doc_folder = get_folder_path(knowledge_base_id)
-        if not os.path.exists(local_doc_folder):
-            return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
-        all_doc_names = [
-            doc
-            for doc in os.listdir(local_doc_folder)
-            if os.path.isfile(os.path.join(local_doc_folder, doc))
-        ]
-        return ListDocsResponse(data=all_doc_names)
-    else:
-        if not os.path.exists(UPLOAD_ROOT_PATH):
-            all_doc_ids = []
-        else:
-            all_doc_ids = [
-                folder
-                for folder in os.listdir(UPLOAD_ROOT_PATH)
-                if os.path.isdir(os.path.join(UPLOAD_ROOT_PATH, folder))
-            ]
+    local_doc_folder = get_folder_path(knowledge_base_id)
+    if not os.path.exists(local_doc_folder):
+        return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
+    all_doc_names = [
+        doc
+        for doc in os.listdir(local_doc_folder)
+        if os.path.isfile(os.path.join(local_doc_folder, doc))
+    ]
+    return ListDocsResponse(data=all_doc_names)
 
-        return ListDocsResponse(data=all_doc_ids)
 
-#异步函数，用于删除文档。
-async def delete_docs(
+async def delete_kb(
         knowledge_base_id: str = Query(...,
                                        description="Knowledge Base Name",
                                        example="kb1"),
-        doc_name: Optional[str] = Query(
+):
+    # TODO: 确认是否支持批量删除知识库
+    knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
+    if not os.path.exists(get_folder_path(knowledge_base_id)):
+        return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
+    shutil.rmtree(get_folder_path(knowledge_base_id))
+    return BaseResponse(code=200, msg=f"Knowledge Base {knowledge_base_id} delete success")
+
+#异步函数，用于删除文档。
+
+async def delete_doc(
+        knowledge_base_id: str = Query(...,
+                                       description="Knowledge Base Name",
+                                       example="kb1"),
+        doc_name: str = Query(
             None, description="doc name", example="doc_name_1.pdf"
         ),
 ):
     knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
-    if not os.path.exists(os.path.join(UPLOAD_ROOT_PATH, knowledge_base_id)):
+    if not os.path.exists(get_folder_path(knowledge_base_id)):
         return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
-    if doc_name:
-        doc_path = get_file_path(knowledge_base_id, doc_name)
-        if os.path.exists(doc_path):
-            os.remove(doc_path)
-
-            # 删除上传的文件后重新生成知识库（FAISS）内的数据
-            remain_docs = await list_docs(knowledge_base_id)
-            if len(remain_docs.data) == 0:
-                shutil.rmtree(get_folder_path(knowledge_base_id), ignore_errors=True)
-            else:
-                local_doc_qa.init_knowledge_vector_store(
-                    get_folder_path(knowledge_base_id), get_vs_path(knowledge_base_id)
-                )
-            
+    doc_path = get_file_path(knowledge_base_id, doc_name)
+    if os.path.exists(doc_path):
+        os.remove(doc_path)
+        remain_docs = await list_docs(knowledge_base_id)
+        if len(remain_docs.data) == 0:
+            shutil.rmtree(get_folder_path(knowledge_base_id), ignore_errors=True)
             return BaseResponse(code=200, msg=f"document {doc_name} delete success")
         else:
-            return BaseResponse(code=1, msg=f"document {doc_name} not found")
-
+            status = local_doc_qa.delete_file_from_vector_store(doc_path, get_vs_path(knowledge_base_id))
+            if "success" in status:
+                return BaseResponse(code=200, msg=f"document {doc_name} delete success")
+            else:
+                return BaseResponse(code=1, msg=f"document {doc_name} delete fail")
     else:
-        shutil.rmtree(get_folder_path(knowledge_base_id))
-        return BaseResponse(code=200, msg=f"Knowledge Base {knowledge_base_id} delete success")
+        return BaseResponse(code=1, msg=f"document {doc_name} not found")
+
+
+async def update_doc(
+        knowledge_base_id: str = Query(...,
+                                       description="知识库名",
+                                       example="kb1"),
+        old_doc: str = Query(
+            None, description="待删除文件名，已存储在知识库中", example="doc_name_1.pdf"
+        ),
+        new_doc: UploadFile = File(description="待上传文件"),
+):
+    knowledge_base_id = urllib.parse.unquote(knowledge_base_id)
+    if not os.path.exists(get_folder_path(knowledge_base_id)):
+        return {"code": 1, "msg": f"Knowledge base {knowledge_base_id} not found"}
+    doc_path = get_file_path(knowledge_base_id, old_doc)
+    if not os.path.exists(doc_path):
+        return BaseResponse(code=1, msg=f"document {old_doc} not found")
+    else:
+        os.remove(doc_path)
+        delete_status = local_doc_qa.delete_file_from_vector_store(doc_path, get_vs_path(knowledge_base_id))
+        if "fail" in delete_status:
+            return BaseResponse(code=1, msg=f"document {old_doc} delete failed")
+        else:
+            saved_path = get_folder_path(knowledge_base_id)
+            if not os.path.exists(saved_path):
+                os.makedirs(saved_path)
+
+            file_content = await new_doc.read()  # 读取上传文件的内容
+
+            file_path = os.path.join(saved_path, new_doc.filename)
+            if os.path.exists(file_path) and os.path.getsize(file_path) == len(file_content):
+                file_status = f"document {new_doc.filename} already exists"
+                return BaseResponse(code=200, msg=file_status)
+
+            with open(file_path, "wb") as f:
+                f.write(file_content)
+
+            vs_path = get_vs_path(knowledge_base_id)
+            vs_path, loaded_files = local_doc_qa.init_knowledge_vector_store([file_path], vs_path)
+            if len(loaded_files) > 0:
+                file_status = f"document {old_doc} delete and document {new_doc.filename} upload success"
+                return BaseResponse(code=200, msg=file_status)
+            else:
+                file_status = f"document {old_doc} success but document {new_doc.filename} upload fail"
+                return BaseResponse(code=500, msg=file_status)
+
 
 # 处理本地文档聊天的请求。
 # 函数首先检查知识库是否存在，如果不存在，则返回一个包含错误信息的响应。
@@ -230,7 +288,7 @@ async def local_doc_chat(
             ],
         ),
 ):
-    vs_path = os.path.join(VS_ROOT_PATH, knowledge_base_id)
+    vs_path = get_vs_path(knowledge_base_id)
     if not os.path.exists(vs_path):
         # return BaseResponse(code=1, msg=f"Knowledge base {knowledge_base_id} not found")
         return ChatMessage(
@@ -292,6 +350,7 @@ async def bing_search_chat(
 #处理通用的聊天请求。
 # 函数使用local_doc_qa.llm.generatorAnswer函数生成回答，并更新历史记录。
 # 最后，返回一个包含问题、回答、历史记录和空源文件信息的响应。
+
 async def chat(
         question: str = Body(..., description="Question", example="工伤保险是什么？"),
         history: List[List[str]] = Body(
@@ -329,8 +388,9 @@ async def stream_chat(websocket: WebSocket, knowledge_base_id: str):
     turn = 1
     while True:
         input_json = await websocket.receive_json()
-        question, history, knowledge_base_id = input_json["question"], input_json["history"], input_json["knowledge_base_id"]
-        vs_path = os.path.join(VS_ROOT_PATH, knowledge_base_id)
+        question, history, knowledge_base_id = input_json["question"], input_json["history"], input_json[
+            "knowledge_base_id"]
+        vs_path = get_vs_path(knowledge_base_id)
 
         if not os.path.exists(vs_path):
             await websocket.send_json({"error": f"Knowledge base {knowledge_base_id} not found"})
@@ -370,12 +430,15 @@ async def document():
     return RedirectResponse(url="/docs")
 
 
+<<<<<<< HEAD
 
 
 # 启动API应用程序。
 # 它接受host和port作为参数，并设置了全局的app和local_doc_qa对象。
 # 然后，它初始化了llm_model_ins对象，并配置了local_doc_qa对象。
 # 最后，使用uvicorn库运行应用程序。
+=======
+>>>>>>> langchain/master
 def api_start(host, port):
     global app
     global local_doc_qa
@@ -405,8 +468,11 @@ def api_start(host, port):
     app.post("/local_doc_qa/upload_files", response_model=BaseResponse)(upload_files)
     app.post("/local_doc_qa/local_doc_chat", response_model=ChatMessage)(local_doc_chat)
     app.post("/local_doc_qa/bing_search_chat", response_model=ChatMessage)(bing_search_chat)
+    app.get("/local_doc_qa/list_knowledge_base", response_model=ListDocsResponse)(list_kbs)
     app.get("/local_doc_qa/list_files", response_model=ListDocsResponse)(list_docs)
-    app.delete("/local_doc_qa/delete_file", response_model=BaseResponse)(delete_docs)
+    app.delete("/local_doc_qa/delete_knowledge_base", response_model=BaseResponse)(delete_kb)
+    app.delete("/local_doc_qa/delete_file", response_model=BaseResponse)(delete_doc)
+    app.post("/local_doc_qa/update_file", response_model=BaseResponse)(update_doc)
 
     local_doc_qa = LocalDocQA()
     local_doc_qa.init_cfg(
