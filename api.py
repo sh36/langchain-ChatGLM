@@ -430,15 +430,12 @@ async def document():
     return RedirectResponse(url="/docs")
 
 
-<<<<<<< HEAD
 
 
 # 启动API应用程序。
 # 它接受host和port作为参数，并设置了全局的app和local_doc_qa对象。
 # 然后，它初始化了llm_model_ins对象，并配置了local_doc_qa对象。
 # 最后，使用uvicorn库运行应用程序。
-=======
->>>>>>> langchain/master
 def api_start(host, port):
     global app
     global local_doc_qa
