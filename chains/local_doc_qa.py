@@ -108,78 +108,78 @@ def generate_prompt(related_docs: List[str],
     return prompt
 
 #将一个整数列表分隔成多个连续的子列表。它接受一个整数列表作为输入，并返回一个包含连续子列表的列表。
-def seperate_list(ls: List[int]) -> List[List[int]]:
-    lists = []
-    ls1 = [ls[0]]
-    for i in range(1, len(ls)):
-        if ls[i - 1] + 1 == ls[i]:
-            ls1.append(ls[i])
-        else:
-            lists.append(ls1)
-            ls1 = [ls[i]]
-    lists.append(ls1)
-    return lists
+# def seperate_list(ls: List[int]) -> List[List[int]]:
+#     lists = []
+#     ls1 = [ls[0]]
+#     for i in range(1, len(ls)):
+#         if ls[i - 1] + 1 == ls[i]:
+#             ls1.append(ls[i])
+#         else:
+#             lists.append(ls1)
+#             ls1 = [ls[i]]
+#     lists.append(ls1)
+#     return lists
 
-# 用于根据嵌入向量进行相似度搜索，并返回具有得分的相关文档。
-# 函数接受一个嵌入向量和一个可选的返回文档数目参数，并使用索引对象进行相似度搜索。
-# 它返回一个包含文档和得分的元组列表。
-def similarity_search_with_score_by_vector(
-        self, embedding: List[float], k: int = 4
-) -> List[Tuple[Document, float]]:
-    scores, indices = self.index.search(np.array([embedding], dtype=np.float32), k)
-    docs = []
-    id_set = set()
-    store_len = len(self.index_to_docstore_id)
-    for j, i in enumerate(indices[0]):
-        if i == -1 or 0 < self.score_threshold < scores[0][j]:
-            # This happens when not enough docs are returned.
-            continue
-        _id = self.index_to_docstore_id[i]
-        doc = self.docstore.search(_id)
-        if not self.chunk_conent:
-            if not isinstance(doc, Document):
-                raise ValueError(f"Could not find document for id {_id}, got {doc}")
-            doc.metadata["score"] = int(scores[0][j])
-            docs.append(doc)
-            continue
-        id_set.add(i)
-        docs_len = len(doc.page_content)
-        for k in range(1, max(i, store_len - i)):
-            break_flag = False
-            for l in [i + k, i - k]:
-                if 0 <= l < len(self.index_to_docstore_id):
-                    _id0 = self.index_to_docstore_id[l]
-                    doc0 = self.docstore.search(_id0)
-                    if docs_len + len(doc0.page_content) > self.chunk_size:
-                        break_flag = True
-                        break
-                    elif doc0.metadata["source"] == doc.metadata["source"]:
-                        docs_len += len(doc0.page_content)
-                        id_set.add(l)
-            if break_flag:
-                break
-    if not self.chunk_conent:
-        return docs
-    if len(id_set) == 0 and self.score_threshold > 0:
-        return []
-    id_list = sorted(list(id_set))
-    id_lists = seperate_list(id_list)
-    for id_seq in id_lists:
-        for id in id_seq:
-            if id == id_seq[0]:
-                _id = self.index_to_docstore_id[id]
-                doc = self.docstore.search(_id)
-            else:
-                _id0 = self.index_to_docstore_id[id]
-                doc0 = self.docstore.search(_id0)
-                doc.page_content += " " + doc0.page_content
-        if not isinstance(doc, Document):
-            raise ValueError(f"Could not find document for id {_id}, got {doc}")
-        doc_score = min([scores[0][id] for id in [indices[0].tolist().index(i) for i in id_seq if i in indices[0]]])
-        doc.metadata["score"] = int(doc_score)
-        docs.append(doc)
-    torch_gc()
-    return docs
+# # 用于根据嵌入向量进行相似度搜索，并返回具有得分的相关文档。
+# # 函数接受一个嵌入向量和一个可选的返回文档数目参数，并使用索引对象进行相似度搜索。
+# # 它返回一个包含文档和得分的元组列表。
+# def similarity_search_with_score_by_vector(
+#         self, embedding: List[float], k: int = 4
+# ) -> List[Tuple[Document, float]]:
+#     scores, indices = self.index.search(np.array([embedding], dtype=np.float32), k)
+#     docs = []
+#     id_set = set()
+#     store_len = len(self.index_to_docstore_id)
+#     for j, i in enumerate(indices[0]):
+#         if i == -1 or 0 < self.score_threshold < scores[0][j]:
+#             # This happens when not enough docs are returned.
+#             continue
+#         _id = self.index_to_docstore_id[i]
+#         doc = self.docstore.search(_id)
+#         if not self.chunk_conent:
+#             if not isinstance(doc, Document):
+#                 raise ValueError(f"Could not find document for id {_id}, got {doc}")
+#             doc.metadata["score"] = int(scores[0][j])
+#             docs.append(doc)
+#             continue
+#         id_set.add(i)
+#         docs_len = len(doc.page_content)
+#         for k in range(1, max(i, store_len - i)):
+#             break_flag = False
+#             for l in [i + k, i - k]:
+#                 if 0 <= l < len(self.index_to_docstore_id):
+#                     _id0 = self.index_to_docstore_id[l]
+#                     doc0 = self.docstore.search(_id0)
+#                     if docs_len + len(doc0.page_content) > self.chunk_size:
+#                         break_flag = True
+#                         break
+#                     elif doc0.metadata["source"] == doc.metadata["source"]:
+#                         docs_len += len(doc0.page_content)
+#                         id_set.add(l)
+#             if break_flag:
+#                 break
+#     if not self.chunk_conent:
+#         return docs
+#     if len(id_set) == 0 and self.score_threshold > 0:
+#         return []
+#     id_list = sorted(list(id_set))
+#     id_lists = seperate_list(id_list)
+#     for id_seq in id_lists:
+#         for id in id_seq:
+#             if id == id_seq[0]:
+#                 _id = self.index_to_docstore_id[id]
+#                 doc = self.docstore.search(_id)
+#             else:
+#                 _id0 = self.index_to_docstore_id[id]
+#                 doc0 = self.docstore.search(_id0)
+#                 doc.page_content += " " + doc0.page_content
+#         if not isinstance(doc, Document):
+#             raise ValueError(f"Could not find document for id {_id}, got {doc}")
+#         doc_score = min([scores[0][id] for id in [indices[0].tolist().index(i) for i in id_seq if i in indices[0]]])
+#         doc.metadata["score"] = int(doc_score)
+#         docs.append(doc)
+#     torch_gc()
+#     return docs
 
 # 将搜索结果转换为文档对象列表。
 # 它接受一个搜索结果列表，将每个搜索结果中的关键信息提取出来，并创建一个对应的文档对象，最后返回文档对象列表。
