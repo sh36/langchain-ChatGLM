@@ -103,10 +103,9 @@ def zh_title_enhance(docs: Document) -> Document:
     if len(docs) > 0:
         for doc in docs:
             # 将文本文件名作为标题
-            title = doc.metadata['filename']
+            title = doc.metadata["filename"]
             doc.metadata['category'] = 'cn_Title'
-            if title:
-                doc.page_content = f"下文与({title})有关。{doc.page_content}"
+            doc.page_content = f"下文与({title})有关。{doc.page_content}"
         return docs
     else:
         print("文件不存在")
