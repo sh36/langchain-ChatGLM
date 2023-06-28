@@ -176,16 +176,16 @@ PROMPT_TEMPLATE = """已知信息：
 CACHED_VS_NUM = 1
 
 # 文本分句长度
-SENTENCE_SIZE = 100
+SENTENCE_SIZE = 200
 
 # 匹配后单段上下文长度
 CHUNK_SIZE = 250
 
 # 传入LLM的历史记录长度
-LLM_HISTORY_LEN = 3
+LLM_HISTORY_LEN = 0
 
 # 知识库检索时返回的匹配内容条数
-VECTOR_SEARCH_TOP_K = 5
+VECTOR_SEARCH_TOP_K = 8
 
 # 知识检索内容相关度 Score, 数值范围约为0-1100，如果为0，则不生效，经测试设置为小于500时，匹配结果更精准
 VECTOR_SEARCH_SCORE_THRESHOLD = 0

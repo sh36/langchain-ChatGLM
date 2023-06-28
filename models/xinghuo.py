@@ -166,7 +166,7 @@ class XINGHUOLLM(RemoteRpcModel, LLM, ABC):
 
     @property
     def _llm_type(self) -> str:
-        return "ERNIE"
+        return "xinghuo"
 
     @property
     def _check_point(self) -> LoaderCheckPoint:
