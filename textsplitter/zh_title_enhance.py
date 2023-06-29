@@ -85,27 +85,27 @@ def is_possible_title(
     return True
 
 
-def zh_title_enhance(docs: Document) -> Document:
-    title = None
-    if len(docs) > 0:
-        for doc in docs:
-            if is_possible_title(doc.page_content):
-                doc.metadata['category'] = 'cn_Title'
-                title = doc.page_content
-            elif title:
-                doc.page_content = f"下文与({title})有关。{doc.page_content}"
-        return docs
-    else:
-        print("文件不存在")
-
 # def zh_title_enhance(docs: Document) -> Document:
 #     title = None
 #     if len(docs) > 0:
 #         for doc in docs:
-#             # 将文本文件名作为标题
-#             title = doc.metadata["filename"]
-#             doc.metadata['category'] = 'cn_Title'
-#             doc.page_content = f"下文与({title})有关。{doc.page_content}"
+#             if is_possible_title(doc.page_content):
+#                 doc.metadata['category'] = 'cn_Title'
+#                 title = doc.page_content
+#             elif title:
+#                 doc.page_content = f"下文与({title})有关。{doc.page_content}"
 #         return docs
 #     else:
 #         print("文件不存在")
+
+def zh_title_enhance(docs: Document) -> Document:
+    title = None
+    if len(docs) > 0:
+        for doc in docs:
+            title = doc.metadata['source']
+            title= title.split('.')[0]
+            title=title.split('/')[-1]
+            doc.page_content = f"下文与({title})有关。{doc.page_content}"
+        return docs
+    else:
+        print("文件不存在")
