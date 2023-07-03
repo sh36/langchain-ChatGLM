@@ -113,6 +113,7 @@ watch(
         <!-- 会话界面 -->
         <div v-if="menu === 1">
           <div class="p-4">
+            <p style="margin-bottom: 1rem; color: red;">请勿上传非公开文件</p>
             <NButton block @click="handleAdd">
               新建聊天
             </NButton>

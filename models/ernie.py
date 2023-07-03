@@ -108,6 +108,7 @@ def ernie_bot_chat(msg):
     ernie_bot_response_body.Result = response_dict.get('result', '')
     ernie_bot_response_body.NeedClearHistory = response_dict.get('need_clear_history', False)
     reply = ernie_bot_response_body.Result
+    print("文心回复：" + reply)
     if reply == '':
         reply = '很抱歉，此问题无法回答，请稍后再问。'
     return reply
