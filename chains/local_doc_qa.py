@@ -227,6 +227,7 @@ class LocalDocQA:
             elif os.path.isfile(filepath):
                 file = os.path.split(filepath)[-1]
                 try:
+                    #加载单个文件，filepath路径是一个文件，加载该文件，并调用 load_file 函数将文件内容按句子大小分割为文档（Document）列表
                     docs = load_file(filepath, sentence_size)
                     logger.info(f"{file} 已成功加载")
                     loaded_files.append(filepath)
@@ -236,6 +237,7 @@ class LocalDocQA:
                     return None
             elif os.path.isdir(filepath):
                 docs = []
+                #加载多个文件
                 for fullfilepath, file in tqdm(zip(*tree(filepath, ignore_dir_names=['tmp_files'])), desc="加载文件"):
                     try:
                         docs += load_file(fullfilepath, sentence_size)
@@ -270,6 +272,7 @@ class LocalDocQA:
                     vs_path = os.path.join(KB_ROOT_PATH,
                                            f"""{"".join(lazy_pinyin(os.path.splitext(file)[0]))}_FAISS_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}""",
                                            "vector_store")
+                #将句子转换为向量的embedding模型。
                 vector_store = MyFAISS.from_documents(docs, self.embeddings)  # docs 为Document列表
                 torch_gc()
 
@@ -307,9 +310,10 @@ class LocalDocQA:
         vector_store.chunk_size = self.chunk_size
         vector_store.chunk_conent = self.chunk_conent
         vector_store.score_threshold = self.score_threshold
-        related_docs_with_score = vector_store.similarity_search_with_score(query, k=self.top_k)
+        related_docs_with_score = vector_store.similarity_search_with_score(query, k=self.top_k)#在文本向量中匹配出与问句向量最相似的top k个
         torch_gc()
         if len(related_docs_with_score) > 0:
+            #匹配出的文本作为上下文和问题一起添加到prompt中
             prompt = generate_prompt(related_docs_with_score, query)
             print("promt:",prompt)
         else:
